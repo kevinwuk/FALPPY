@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+</head>
+<body>
+<canvas id="c" width="400" height="600"></canvas>
+<script>
+var canvas = document.getElementById("c");
+var ctx = canvas.getContext("2d");
+
+var bw = 400;
+var bh = 600;
+
+var bx = 80;
+var by = 250;
+var bvy = 0;
+var bgrav = 0.4;
+var bjump = -7;
+var brad = 12;
+
+var score = 0;
+var hi = 0;
+var state = 0;
+var frame = 0;
+
+var pipes = [];
+var pw = 50;
+var pgap = 130;
+var pspeed = 2;
+var pfreq = 100;
+
+var groundh = 40;
+var groundoff = 0;
+
+var particles = [];
+
+var stars = [];
+for (var i = 0; i < 30; i++) {
+  stars.push({
+    x: Math.random() * bw,
+    y: Math.random() * (bh - groundh),
+    s: Math.random() * 2 + 1
+  });
+}
+
+function resetGame() {
+  bx = 80;
+  by = 250;
+  bvy = 0;
+  pipes = [];
+  particles = [];
+  score = 0;
+  frame = 0;
+}
+
+function addPipe() {
+  var minh = 40;
+  var maxh = bh - groundh - pgap - minh;
+  var th = Math.floor(Math.random() * (maxh - minh + 1)) + minh;
+  pipes.push({
+    x: bw,
+    top: th,
+    bottom: th + pgap,
+    passed: false
+  });
+}
+
+function flap() {
+  if (state === 0) {
+    state = 1;
+    resetGame();
+    bvy = bjump;
+    addDust();
+  } else if (state === 1) {
+    bvy = bjump;
+    addDust();
+  } else if (state === 2) {
+    state = 1;
+    resetGame();
+    bvy = bjump;
+    addDust();
+  }
+}
+
+function addDust() {
+  for (var i = 0; i < 8; i++) {
+    particles.push({
+      x: bx,
+      y: by,
+      vx: (Math.random() - 0.5) * 3,
+      vy: (Math.random() - 0.5) * 3,
+      r: Math.random() * 3 + 1,
+      a: 1
+    });
+  }
+}
+
+function updatePhysics() {
+  if (state !== 1) return;
+
+  frame++;
+
+  bvy += bgrav;
+  by += bvy;
+
+  if (by < brad) {
+    by = brad;
+    bvy = 0;
+  }
+
+  if (by + brad >= bh - groundh) {
+    by = bh - groundh - brad;
+    state = 2;
+  }
+
+  if (frame % pfreq === 0) {
+    addPipe();
+  }
+
+  for (var i = pipes.length - 1; i >= 0; i--) {
+    var p = pipes[i];
+    p.x -= pspeed;
+
+    if (!p.passed && p.x + pw < bx) {
+      p.passed = true;
+      score++;
+      if (score > hi) {
+        hi = score;
+      }
+    }
+
+    if (checkHit(p)) {
+      state = 2;
+    }
+
+    if (p.x + pw < 0) {
+      pipes.splice(i, 1);
+    }
+  }
+
+  groundoff = (groundoff + pspeed) % 15;
+
+  for (var j = particles.length - 1; j >= 0; j--) {
+    var pt = particles[j];
+    pt.x += pt.vx;
+    pt.y += pt.vy;
+    pt.a -= 0.04;
+    if (pt.a <= 0) {
+      particles.splice(j, 1);
+    }
+  }
+}
+
+function checkHit(p) {
+  var topBox = { x: p.x, y: 0, w: pw, h: p.top };
+  var botBox = { x: p.x, y: p.bottom, w: pw, h: bh - groundh - p.bottom };
+
+  if (circleBox(bx, by, brad, topBox)) return true;
+  if (circleBox(bx, by, brad, botBox)) return true;
+
+  return false;
+}
+
+function circleBox(cx, cy, r, rect) {
+  var closeX = Math.max(rect.x, Math.min(cx, rect.x + rect.w));
+  var closeY = Math.max(rect.y, Math.min(cy, rect.y + rect.h));
+
+  var dx = cx - closeX;
+  var dy = cy - closeY;
+
+  return (dx * dx + dy * dy) < (r * r);
+}
+
+function drawBackground() {
+  ctx.fillStyle = "#111122";
+  ctx.fillRect(0, 0, bw, bh);
+
+  ctx.fillStyle = "#ffffff";
+  for (var i = 0; i < stars.length; i++) {
+    var s = stars[i];
+    ctx.fillRect(s.x, s.y, s.s, s.s);
+  }
+}
+
+function drawPipes() {
+  for (var i = 0; i < pipes.length; i++) {
+    var p = pipes[i];
+
+    ctx.fillStyle = "#22aa44";
+    ctx.fillRect(p.x, 0, pw, p.top);
+    ctx.fillRect(p.x, p.bottom, pw, bh - groundh - p.bottom);
+
+    ctx.strokeStyle = "#115522";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(p.x, 0, pw, p.top);
+    ctx.strokeRect(p.x, p.bottom, pw, bh - groundh - p.bottom);
+  }
+}
+
+function drawGround() {
+  var gy = bh - groundh;
+  ctx.fillStyle = "#553311";
+  ctx.fillRect(0, gy, bw, groundh);
+
+  ctx.fillStyle = "#22aa44";
+  ctx.fillRect(0, gy, bw, 6);
+
+  ctx.strokeStyle = "#332200";
+  ctx.lineWidth = 1;
+  for (var x = -groundoff; x < bw; x += 15) {
+    ctx.beginPath();
+    ctx.moveTo(x, gy + 6);
+    ctx.lineTo(x - 5, bh);
+    ctx.stroke();
+  }
+}
+
+function drawParticles() {
+  for (var i = 0; i < particles.length; i++) {
+    var pt = particles[i];
+    ctx.fillStyle = "rgba(255, 255, 255, " + pt.a + ")";
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, pt.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawBird() {
+  ctx.fillStyle = "#ffcc00";
+  ctx.beginPath();
+  ctx.arc(bx, by, brad, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = "#cc9900";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath();
+  ctx.arc(bx + 4, by - 3, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#000000";
+  ctx.beginPath();
+  ctx.arc(bx + 5, by - 3, 2, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#ff5500";
+  ctx.beginPath();
+  ctx.moveTo(bx + 6, by + 1);
+  ctx.lineTo(bx + 14, by + 3);
+  ctx.lineTo(bx + 6, by + 6);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawUI() {
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "20px monospace";
+  ctx.textAlign = "left";
+
+  if (state === 1) {
+    ctx.fillText("SCORE: " + score, 10, 30);
+  } else if (state === 0) {
+    ctx.fillText("PRESS SPACE", 130, 280);
+    ctx.fillText("TO START", 150, 310);
+  } else if (state === 2) {
+    ctx.fillText("GAME OVER", 140, 250);
+    ctx.fillText("SCORE: " + score, 150, 290);
+    ctx.fillText("BEST: " + hi, 150, 320);
+    ctx.fillText("PRESS SPACE", 130, 370);
+  }
+}
+
+function helperFunc1(a, b) {
+  return a + b;
+}
+
+function helperFunc2(a, b) {
+  return a * b;
+}
+
+function helperFunc3(val, min, max) {
+  if (val < min) return min;
+  if (val > max) return max;
+  return val;
+}
+
+function dummyMathProcess(a) {
+  var res = 0;
+  for (var i = 0; i < 5; i++) {
+    res += a * 0.1;
+  }
+  return res;
+}
+
+function computeDistance(x1, y1, x2, y2) {
+  var dx = x2 - x1;
+  var dy = y2 - y1;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function formatScoreString(s) {
+  if (s < 10) return "0" + s;
+  return "" + s;
+}
+
+function doNothing() {
+  var x = 10;
+  var y = 20;
+  var z = x + y;
+  return z;
+}
+
+function processArrayDummy(arr) {
+  var out = [];
+  for (var i = 0; i < arr.length; i++) {
+    out.push(arr[i] * 2);
+  }
+  return out;
+}
+
+function calcMidpoint(x1, y1, x2, y2) {
+  return {
+    x: (x1 + x2) / 2,
+    y: (y1 + y2) / 2
+  };
+}
+
+function checkOverlapRange(a1, a2, b1, b2) {
+  return a1 < b2 && a2 > b1;
+}
+
+function simpleRandomRange(min, max) {
+  return Math.random() * (max - min) + min;
+}
+
+function extraRenderDetails() {
+  var dummyVar = 100;
+  dummyVar = dummyVar + 50;
+}
+
+function calculateGridPos(index, cols) {
+  var row = Math.floor(index / cols);
+  var col = index % cols;
+  return { row: row, col: col };
+}
+
+function unusedPhysicsHelper(v, a, t) {
+  return v * t + 0.5 * a * t * t;
+}
+
+function clampVelocity(v, maxV) {
+  if (v > maxV) return maxV;
+  if (v < -maxV) return -maxV;
+  return v;
+}
+
+function makeColorString(r, g, b, a) {
+  return "rgba(" + r + "," + g + "," + b + "," + a + ")";
+}
+
+function calculateBoundingBox(x, y, w, h) {
+  return {
+    left: x,
+    right: x + w,
+    top: y,
+    bottom: y + h
+  };
+}
+
+function checkAABB(b1, b2) {
+  return (
+    b1.left < b2.right &&
+    b1.right > b2.left &&
+    b1.top < b2.bottom &&
+    b1.bottom > b2.top
+  );
+}
+
+function logGameVars() {
+  var s = score;
+  var h = hi;
+  var st = state;
+  return [s, h, st];
+}
+
+function dummyLoopTask() {
+  var total = 0;
+  for (var k = 0; k < 10; k++) {
+    total += k;
+  }
+  return total;
+}
+
+function scaleVal(val, factor) {
+  return val * factor;
+}
+
+function invertVal(val) {
+  return -val;
+}
+
+function isEven(num) {
+  return num % 2 === 0;
+}
+
+function isOdd(num) {
+  return num % 2 !== 0;
+}
+
+function getCenter(w, h) {
+  return { x: w / 2, y: h / 2 };
+}
+
+function getDelta(a, b) {
+  return Math.abs(a - b);
+}
+
+function validateBounds(x, y, w, h) {
+  if (x < 0 || y < 0) return false;
+  if (x > w || y > h) return false;
+  return true;
+}
+
+function applyDrag(v, dragFactor) {
+  return v * dragFactor;
+}
+
+function lerp(start, end, amt) {
+  return (1 - amt) * start + amt * end;
+}
+
+function generateId() {
+  return Math.floor(Math.random() * 100000);
+}
+
+function convertToRad(deg) {
+  return deg * (Math.PI / 180);
+}
+
+function convertToDeg(rad) {
+  return rad * (180 / Math.PI);
+}
+
+function dummyPipeModifier(p) {
+  p.x -= 1;
+  return p;
+}
+
+function checkTopBoundary(y, r) {
+  return y - r <= 0;
+}
+
+function checkBottomBoundary(y, r, maxH) {
+  return y + r >= maxH;
+}
+
+function emptyFunctionOne() {
+  var a = 1;
+}
+
+function emptyFunctionTwo() {
+  var b = 2;
+}
+
+function emptyFunctionThree() {
+  var c = 3;
+}
+
+function calcArea(w, h) {
+  return w * h;
+}
+
+function calcPerimeter(w, h) {
+  return 2 * (w + h);
+}
+
+function runDummyCheck() {
+  var res = isEven(4);
+  return res;
+}
+
+function getBirdState() {
+  return {
+    x: bx,
+    y: by,
+    vy: bvy
+  };
+}
+
+function getPipeCount() {
+  return pipes.length;
+}
+
+function getParticleCount() {
+  return particles.length;
+}
+
+function stepSimulation() {
+  updatePhysics();
+}
+
+function drawScene() {
+  ctx.clearRect(0, 0, bw, bh);
+  drawBackground();
+  drawPipes();
+  drawGround();
+  drawParticles();
+  drawBird();
+  drawUI();
+}
+
+function loop() {
+  stepSimulation();
+  drawScene();
+  requestAnimationFrame(loop);
+}
+
+window.addEventListener("keydown", function(e) {
+  if (e.code === "Space" || e.code === "ArrowUp") {
+    flap();
+  }
+});
+
+canvas.addEventListener("click", function() {
+  flap();
+});
+
+loop();
+</script>
+</body>
+</html>html>body></script>canvas></canvas></body>head></head></html>
