@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Flappy Bird Deluxe Ultimate Edition</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Fredoka+One&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+* {
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #0f172a;
+  font-family: 'Outfit', sans-serif;
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.pixel-font {
+  font-family: 'Press Start 2P', cursive;
+}
+.title-font {
+  font-family: 'Fredoka One', cursive;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+.glass-panel {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.glow-effect {
+  box-shadow: 0 0 25px rgba(234, 179, 8, 0.4);
+}
+.glow-text {
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+}
+@keyframes pulse-subtle {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s infinite ease-in-out;
+}
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+.animate-float {
+  animation: float-slow 3s infinite ease-in-out;
+}
+</style>
+</head>
+<body class="bg-slate-950 text-white flex items-center justify-center min-h-screen select-none overflow-hidden">
+
+<div id="game-container" class="relative w-full max-w-4xl h-full max-h-[900px] flex flex-col justify-center items-center p-0 md:p-4">
+  
+  <div class="relative w-full h-full max-w-[500px] max-h-[850px] bg-slate-900 rounded-none md:rounded-3xl shadow-2xl overflow-hidden border-0 md:border-4 border-slate-700/50 flex flex-col">
+    
+    <canvas id="gameCanvas" class="w-full h-full block cursor-pointer"></canvas>
+
+    <div id="hud-overlay" class="absolute top-0 left-0 w-full h-full pointer-events-none flex flex-col justify-between p-4 z-10 hidden">
+      <div class="flex justify-between items-start w-full">
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center gap-2 bg-slate-900/80 backdrop-blur border border-white/10 px-4 py-2 rounded-2xl shadow-lg">
+            <span class="text-xs text-slate-400 font-bold uppercase tracking-wider">Score</span>
+            <span id="hud-score" class="text-2xl font-black text-amber-400 pixel-font">0</span>
+          </div>
+          <div id="hud-multiplier-container" class="hidden flex items-center gap-1 bg-amber-500/20 border border-amber-500/40 px-3 py-1 rounded-xl">
+            <span id="hud-multiplier" class="text-xs font-black text-amber-300 pixel-font">2X POINTS</span>
+          </div>
+        </div>
+
+        <div class="flex flex-col items-end gap-2">
+          <div class="flex items-center gap-2 bg-slate-900/80 backdrop-blur border border-white/10 px-4 py-2 rounded-2xl shadow-lg">
+            <svg class="w-5 h-5 text-yellow-400 fill-current" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/></svg>
+            <span id="hud-coins" class="text-lg font-bold text-yellow-300">0</span>
+          </div>
+          <button id="btn-hud-pause" class="pointer-events-auto bg-slate-800/80 hover:bg-slate-700 border border-white/10 p-2.5 rounded-2xl transition active:scale-95 text-slate-200">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          </button>
+        </div>
+      </div>
+
+      <div id="hud-active-powerups" class="flex flex-col gap-2 mb-16 items-start"></div>
+    </div>
+
+    <div id="menu-main" class="absolute inset-0 z-20 flex flex-col justify-between p-6 bg-slate-950/60 backdrop-blur-md transition-all duration-300">
+      <div class="flex justify-between items-center w-full">
+        <div class="flex items-center gap-2 bg-slate-900/80 border border-white/10 px-3 py-1.5 rounded-2xl">
+          <svg class="w-5 h-5 text-yellow-400 fill-current" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/></svg>
+          <span id="main-coins-display" class="text-base font-extrabold text-yellow-400">0</span>
+        </div>
+        <div class="flex gap-2">
+          <button id="btn-open-settings" class="bg-slate-800/80 hover:bg-slate-700 border border-white/10 p-2.5 rounded-2xl transition active:scale-95 text-slate-200">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+          </button>
+          <button id="btn-open-stats" class="bg-slate-800/80 hover:bg-slate-700 border border-white/10 p-2.5 rounded-2xl transition active:scale-95 text-slate-200">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="flex flex-col items-center justify-center my-auto text-center">
+        <div class="relative mb-2 animate-float">
+          <h1 class="text-4xl md:text-5xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 via-amber-400 to-orange-500 title-font drop-shadow-[0_4px_10px_rgba(245,158,11,0.5)]">FLAPPY</h1>
+          <h1 class="text-3xl md:text-4xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-b from-sky-300 to-blue-600 title-font -mt-2 drop-shadow-[0_4px_10px_rgba(14,165,233,0.5)]">DELUXE</h1>
+        </div>
+        <p class="text-xs text-slate-400 font-semibold uppercase tracking-widest mb-6">Ultimate Arcade Edition</p>
+
+        <button id="btn-play-game" class="w-full max-w-xs py-4 px-8 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black text-xl rounded-2xl shadow-lg shadow-emerald-900/40 border border-emerald-300/30 transition transform hover:-translate-y-0.5 active:translate-y-0.5 active:scale-95 flex items-center justify-center gap-3 group animate-pulse-subtle">
+          <svg class="w-7 h-7 fill-current group-hover:scale-110 transition" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          <span>PLAY NOW</span>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-3 gap-3 w-full">
+        <button id="btn-open-shop" class="flex flex-col items-center justify-center py-3 px-2 bg-slate-900/90 hover:bg-slate-800 border border-white/10 rounded-2xl transition active:scale-95">
+          <svg class="w-6 h-6 text-amber-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+          <span class="text-xs font-bold text-slate-300">Skins</span>
+        </button>
+        <button id="btn-open-modes" class="flex flex-col items-center justify-center py-3 px-2 bg-slate-900/90 hover:bg-slate-800 border border-white/10 rounded-2xl transition active:scale-95">
+          <svg class="w-6 h-6 text-sky-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+          <span class="text-xs font-bold text-slate-300">Modes</span>
+        </button>
+        <button id="btn-open-achievements" class="flex flex-col items-center justify-center py-3 px-2 bg-slate-900/90 hover:bg-slate-800 border border-white/10 rounded-2xl transition active:scale-95">
+          <svg class="w-6 h-6 text-purple-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+          <span class="text-xs font-bold text-slate-300">Badges</span>
+        </button>
+      </div>
+    </div>
+
+    <div id="menu-shop" class="absolute inset-0 z-30 flex flex-col p-6 glass-panel transition-all duration-300 transform translate-y-full opacity-0 pointer-events-none">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-2xl font-black text-white title-font">CHARACTER SHOP</h2>
+        <button id="btn-close-shop" class="p-2 bg-slate-800 rounded-xl hover:bg-slate-700 text-slate-400 hover:text-white transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div id="shop-skins-container" class="grid grid-cols-1 gap-3 overflow-y-auto pr-1 custom-scrollbar my-auto max-h-[520px]"></div>
+    </div>
+
+    <div id="menu-modes" class="absolute inset-0 z-30 flex flex-col p-6 glass-panel transition-all duration-300 transform translate-y-full opacity-0 pointer-events-none">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-2xl font-black text-white title-font">GAME MODES</h2>
+        <button id="btn-close-modes" class="p-2 bg-slate-800 rounded-xl hover:bg-slate-700 text-slate-400 hover:text-white transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div id="modes-container" class="grid grid-cols-1 gap-3 overflow-y-auto pr-1 custom-scrollbar my-auto"></div>
+    </div>
+
+    <div id="menu-achievements" class="absolute inset-0 z-30 flex flex-col p-6 glass-panel transition-all duration-300 transform translate-y-full opacity-0 pointer-events-none">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-2xl font-black text-white title-font">ACHIEVEMENTS</h2>
+        <button id="btn-close-achievements" class="p-2 bg-slate-800 rounded-xl hover:bg-slate-700 text-slate-400 hover:text-white transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div id="achievements-container" class="grid grid-cols-1 gap-3 overflow-y-auto pr-1 custom-scrollbar my-auto max-h-[520px]"></div>
+    </div>
+
+    <div id="menu-settings" class="absolute inset-0 z-30 flex flex-col p-6 glass-panel transition-all duration-300 transform translate-y-full opacity-0 pointer-events-none">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-black text-white title-font">SETTINGS</h2>
+        <button id="btn-close-settings" class="p-2 bg-slate-800 rounded-xl hover:bg-slate-700 text-slate-400 hover:text-white transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div class="flex flex-col gap-5 my-auto">
+        <div class="flex justify-between items-center bg-slate-900/60 p-4 rounded-2xl border border-white/5">
+          <span class="font-bold text-slate-200">Sound Effects</span>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="setting-sound" class="sr-only peer" checked>
+            <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+          </label>
+        </div>
+        <div class="flex justify-between items-center bg-slate-900/60 p-4 rounded-2xl border border-white/5">
+          <span class="font-bold text-slate-200">Particle Effects</span>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="setting-particles" class="sr-only peer" checked>
+            <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+          </label>
+        </div>
+        <div class="flex justify-between items-center bg-slate-900/60 p-4 rounded-2xl border border-white/5">
+          <span class="font-bold text-slate-200">Weather FX</span>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="setting-weather" class="sr-only peer" checked>
+            <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+          </label>
+        </div>
+        <button id="btn-reset-data" class="w-full py-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 font-bold border border-red-500/30 rounded-2xl transition active:scale-95 mt-4">
+          Reset Progress Data
+        </button>
+      </div>
+    </div>
+
+    <div id="menu-stats" class="absolute inset-0 z-30 flex flex-col p-6 glass-panel transition-all duration-300 transform translate-y-full opacity-0 pointer-events-none">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-2xl font-black text-white title-font">CAREER STATS</h2>
+        <button id="btn-close-stats" class="p-2 bg-slate-800 rounded-xl hover:bg-slate-700 text-slate-400 hover:text-white transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div class="grid grid-cols-2 gap-3 my-auto">
+        <div class="bg-slate-900/80 p-4 rounded-2xl border border-white/5 flex flex-col items-center">
+          <span class="text-xs text-slate-400 font-bold uppercase">High Score</span>
+          <span id="stat-high-score" class="text-2xl font-black text-amber-400 pixel-font mt-1">0</span>
+        </div>
+        <div class="bg-slate-900/80 p-4 rounded-2xl border border-white/5 flex flex-col items-center">
+          <span class="text-xs text-slate-400 font-bold uppercase">Total Games</span>
+          <span id="stat-total-games" class="text-2xl font-black text-sky-400 pixel-font mt-1">0</span>
+        </div>
+        <div class="bg-slate-900/80 p-4 rounded-2xl border border-white/5 flex flex-col items-center">
+          <span class="text-xs text-slate-400 font-bold uppercase">Total Jumps</span>
+          <span id="stat-total-jumps" class="text-2xl font-black text-emerald-400 pixel-font mt-1">0</span>
+        </div>
+        <div class="bg-slate-900/80 p-4 rounded-2xl border border-white/5 flex flex-col items-center">
+          <span class="text-xs text-slate-400 font-bold uppercase">Coins Gathered</span>
+          <span id="stat-total-coins" class="text-2xl font-black text-yellow-400 pixel-font mt-1">0</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="menu-gameover" class="absolute inset-0 z-30 flex flex-col items-center justify-between p-6 glass-panel transition-all duration-300 opacity-0 pointer-events-none scale-95">
+      <div class="text-center mt-2">
+        <h2 class="text-3xl font-black text-red-500 title-font tracking-wide drop-shadow-[0_4px_12px_rgba(239,68,68,0.5)]">GAME OVER</h2>
+        <p id="gameover-reason" class="text-xs text-slate-400 font-medium">You hit an obstacle!</p>
+      </div>
+
+      <div class="w-full bg-slate-900/90 border border-white/10 rounded-3xl p-5 shadow-xl flex flex-col gap-3 my-auto">
+        <div class="flex justify-between items-center border-b border-white/10 pb-3">
+          <span class="text-sm font-bold text-slate-400">FINAL SCORE</span>
+          <span id="gameover-score" class="text-3xl font-black text-amber-400 pixel-font">0</span>
+        </div>
+        <div class="flex justify-between items-center border-b border-white/10 pb-3">
+          <span class="text-sm font-bold text-slate-400">BEST SCORE</span>
+          <span id="gameover-best" class="text-xl font-black text-white pixel-font">0</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 pt-1 text-xs">
+          <div class="flex justify-between bg-slate-800/50 p-2 rounded-xl">
+            <span class="text-slate-400">Coins</span>
+            <span id="gameover-coins" class="font-bold text-yellow-400">0</span>
+          </div>
+          <div class="flex justify-between bg-slate-800/50 p-2 rounded-xl">
+            <span class="text-slate-400">Pipes</span>
+            <span id="gameover-pipes" class="font-bold text-white">0</span>
+          </div>
+          <div class="flex justify-between bg-slate-800/50 p-2 rounded-xl">
+            <span class="text-slate-400">Time</span>
+            <span id="gameover-time" class="font-bold text-white">0s</span>
+          </div>
+          <div class="flex justify-between bg-slate-800/50 p-2 rounded-xl">
+            <span class="text-slate-400">Powerups</span>
+            <span id="gameover-powerups" class="font-bold text-sky-400">0</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-3 w-full">
+        <button id="btn-restart" class="flex-1 py-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black text-lg rounded-2xl shadow-lg border border-emerald-300/30 transition transform active:scale-95 flex items-center justify-center gap-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+          RETRY
+        </button>
+        <button id="btn-return-main" class="py-4 px-5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl border border-white/10 transition transform active:scale-95">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+        </button>
+      </div>
+    </div>
+
+    <div id="achievement-toast" class="absolute top-5 left-1/2 transform -translate-x-1/2 z-50 bg-slate-900/95 border border-amber-500/50 rounded-2xl p-3 shadow-2xl flex items-center gap-3 transition-all duration-500 -translate-y-24 opacity-0 pointer-events-none min-w-[280px]">
+      <div class="p-2 bg-amber-500/20 rounded-xl border border-amber-500/30 text-amber-400">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+      </div>
+      <div>
+        <div class="text-[10px] font-bold text-amber-400 uppercase tracking-widest">Achievement Unlocked!</div>
+        <div id="toast-title" class="text-sm font-extrabold text-white">Title</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let audioCtx = null;
+
+function initAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+}
+
+function playSound(type) {
+  if (!gameState.settings.sound || !audioCtx) return;
+  try {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    const now = audioCtx.currentTime;
+
+    if (type === 'jump') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(350, now);
+      osc.frequency.exponentialRampToValueAtTime(700, now + 0.12);
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+      osc.start(now);
+      osc.stop(now + 0.12);
+    } else if (type === 'score') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(523.25, now);
+      osc.frequency.setValueAtTime(659.25, now + 0.08);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+      osc.start(now);
+      osc.stop(now + 0.2);
+    } else if (type === 'coin') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(987.77, now);
+      osc.frequency.setValueAtTime(1318.51, now + 0.08);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+      osc.start(now);
+      osc.stop(now + 0.25);
+    } else if (type === 'hit') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(180, now);
+      osc.frequency.exponentialRampToValueAtTime(40, now + 0.25);
+      gain.gain.setValueAtTime(0.4, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+      osc.start(now);
+      osc.stop(now + 0.25);
+    } else if (type === 'powerup') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(300, now);
+      osc.frequency.exponentialRampToValueAtTime(800, now + 0.25);
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+      osc.start(now);
+      osc.stop(now + 0.25);
+    } else if (type === 'click') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(400, now);
+      osc.frequency.exponentialRampToValueAtTime(200, now + 0.05);
+      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+      osc.start(now);
+      osc.stop(now + 0.05);
+    }
+  } catch (e) {}
+}
+
+const SKINS = [
+  { id: 'classic', name: 'Classic Yellow', price: 0, color: '#facc15', accent: '#f97316', eye: '#ffffff', pupil: '#000000', trail: '#fde047' },
+  { id: 'neon', name: 'Cyberpunk Neon', price: 50, color: '#06b6d4', accent: '#f43f5e', eye: '#ffffff', pupil: '#0891b2', trail: '#22d3ee' },
+  { id: 'phoenix', name: 'Golden Phoenix', price: 150, color: '#f97316', accent: '#dc2626', eye: '#fef08a', pupil: '#991b1b', trail: '#fb923c' },
+  { id: 'raven', name: 'Shadow Raven', price: 300, color: '#334155', accent: '#64748b', eye: '#f43f5e', pupil: '#881337', trail: '#475569' },
+  { id: 'pixel', name: 'Retro Emerald', price: 500, color: '#10b981', accent: '#047857', eye: '#ecfdf5', pupil: '#064e3b', trail: '#34d399' }
+];
+
+const MODES = [
+  { id: 'classic', name: 'Classic', desc: 'Standard Flappy physics and pipe speed.', speedMultiplier: 1, gravityMultiplier: 1, gapSize: 160 },
+  { id: 'hardcore', name: 'Hardcore', desc: 'Faster speed and tighter pipe gaps!', speedMultiplier: 1.4, gravityMultiplier: 1.25, gapSize: 130 },
+  { id: 'gravity', name: 'Gravity Flip', desc: 'Gravity flips direction every 5 points!', speedMultiplier: 1, gravityMultiplier: 1, gapSize: 160, special: 'flip' },
+  { id: 'zen', name: 'Zen Invincible', desc: 'Relax mode! Pass through pipes without dying.', speedMultiplier: 0.9, gravityMultiplier: 0.85, gapSize: 180, special: 'zen' }
+];
+
+const POWERUP_TYPES = [
+  { id: 'shield', name: 'Shield', color: '#38bdf8', icon: '🛡️', duration: 8000 },
+  { id: 'magnet', name: 'Coin Magnet', color: '#eab308', icon: '🧲', duration: 10000 },
+  { id: 'slow', name: 'Slow Motion', color: '#a855f7', icon: '⏳', duration: 7000 },
+  { id: 'double', name: '2x Points', color: '#f97316', icon: '2️⃣', duration: 10000 },
+  { id: 'shrink', name: 'Shrink Bird', color: '#ec4899', icon: '🔍', duration: 8000 }
+];
+
+const ACHIEVEMENTS = [
+  { id: 'first_flight', name: 'First Flight', desc: 'Play your first game', unlocked: false },
+  { id: 'score_10', name: 'Getting Good', desc: 'Reach a score of 10', unlocked: false },
+  { id: 'score_50', name: 'Pro Flapper', desc: 'Reach a score of 50', unlocked: false },
+  { id: 'coins_50', name: 'Treasure Hunter', desc: 'Collect 50 total coins', unlocked: false },
+  { id: 'powerup_10', name: 'Power Collector', desc: 'Pick up 10 power-ups', unlocked: false },
+  { id: 'all_skins', name: 'Fashionista', desc: 'Unlock all character skins', unlocked: false }
+];
+
+let gameState = {
+  running: false,
+  paused: false,
+  gameOver: false,
+  score: 0,
+  coins: 0,
+  pipesPassed: 0,
+  timeSurvived: 0,
+  powerupsCollected: 0,
+  currentMode: 'classic',
+  currentSkin: 'classic',
+  unlockedSkins: ['classic'],
+  settings: { sound: true, particles: true, weather: true },
+  stats: { totalGames: 0, totalJumps: 0, totalCoins: 0, highScore: 0 },
+  achievements: ACHIEVEMENTS
+};
+
+function loadSavedData() {
+  const saved = localStorage.getItem('flappy_deluxe_save');
+  if (saved) {
+    try {
+      const data = JSON.parse(saved);
+      gameState.coins = data.coins || 0;
+      gameState.unlockedSkins = data.unlockedSkins || ['classic'];
+      gameState.currentSkin = data.currentSkin || 'classic';
+      gameState.stats = data.stats || gameState.stats;
+      gameState.settings = data.settings || gameState.settings;
+      if (data.achievements) {
+        data.achievements.forEach(sa => {
+          const a = gameState.achievements.find(x => x.id === sa.id);
+          if (a) a.unlocked = sa.unlocked;
+        });
+      }
+    } catch(e) {}
+  }
+}
+
+function saveData() {
+  const data = {
+    coins: gameState.coins,
+    unlockedSkins: gameState.unlockedSkins,
+    currentSkin: gameState.currentSkin,
+    stats: gameState.stats,
+    settings: gameState.settings,
+    achievements: gameState.achievements
+  };
+  localStorage.setItem('flappy_deluxe_save', JSON.stringify(data));
+}
+
+function triggerAchievement(id) {
+  const ach = gameState.achievements.find(a => a.id === id);
+  if (ach && !ach.unlocked) {
+    ach.unlocked = true;
+    saveData();
+    showToast(ach.name);
+  }
+}
+
+function showToast(title) {
+  const toast = document.getElementById('achievement-toast');
+  document.getElementById('toast-title').innerText = title;
+  toast.classList.remove('-translate-y-24', 'opacity-0', 'pointer-events-none');
+  toast.classList.add('translate-y-0', 'opacity-100');
+  setTimeout(() => {
+    toast.classList.remove('translate-y-0', 'opacity-100');
+    toast.classList.add('-translate-y-24', 'opacity-0', 'pointer-events-none');
+  }, 3000);
+}
+
+let canvasWidth = 400;
+let canvasHeight = 700;
+
+function resizeCanvas() {
+  const container = canvas.parentElement;
+  canvasWidth = container.clientWidth;
+  canvasHeight = container.clientHeight;
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+let bird = {
+  x: 80,
+  y: 300,
+  radius: 16,
+  baseRadius: 16,
+  velocity: 0,
+  gravity: 0.38,
+  jump</script>body>div>div>div>div></div>div></div>div>svg>path></path></svg></div>div>div>button>svg>path></path></svg></button>button>svg>path></path></svg></button></div>div>div>div>span></span>span></span></div>div>span></span>span></span></div>div>span></span>span></span></div>div>span></span>span></span></div>div>span></span>span></span></div>div>span></span>span></span></div>div>p></p>h2></h2></div>div>div>div>span></span>span></span></div>div>span></span>span></span></div>div>span></span>span></span></div>div>span></span>span></span></div>div>button>svg>path></path></svg></button>h2></h2></div>div>div>button></button>div>label>div></div></label>span></span></div>div>label>div></div></label>span></span></div>div>label>div></div></label>span></span></div>div>button>svg>path></path></svg></button>h2></h2></div>div>div></div>div>button>svg>path></path></svg></button>h2></h2></div>div>div></div>div>button>svg>path></path></svg></button>h2></h2></div>div>div></div>div>button>svg>path></path></svg></button>h2></h2></div>div>div>button>span></span>svg>path></path></svg></button>button>span></span>svg>path></path></svg></button>button>span></span>svg>path></path></svg></button></div>div>button>span></span>svg></svg></button>p></p>div>h1></h1>h1></h1></div>div>div>button>svg>path></path></svg></button>button>svg>path></path>path></path></svg></button></div>div>span></span>svg></svg></div>div>div></div>div>div>button>svg>path></path></svg></button>div>span></span>svg></svg></div>div>div>span></span></div>div>span></span>span></span></div>canvas></canvas></div></body>head></style></script>title></title></head></html>""
