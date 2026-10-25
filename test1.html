@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+</head>
+<body>
+<canvas id="canvas" width="400" height="600"></canvas>
+<script>
+var canvas = document.getElementById("canvas");
+var ctx = canvas.getContext("2d");
+
+var w = 400;
+var h = 600;
+
+var birdX = 100;
+var birdY = 200;
+var birdY2 = 200;
+var birdRadius = 15;
+var birdSize = 30;
+
+var gravity1 = 0.5;
+var gravity2 = 0.2;
+var gravity3 = 0.8;
+var currentGravity = 0.45;
+
+var velocity = 0;
+var velocityY = 0;
+var velocityX = 0;
+var jumpStrength1 = -10;
+var jumpStrength2 = -6.5;
+var flapPower = -8;
+
+var isDead = false;
+var dead = false;
+var gameState = "START";
+var state = 0;
+
+var score = 0;
+var scoreCount = 0;
+var highScore = 0;
+var points = 0;
+
+var pipeX1 = 400;
+var pipeY1 = 150;
+var pipeX2 = 600;
+var pipeY2 = 250;
+var pipeWidth = 60;
+var pipeGap = 120;
+var pipeGap2 = 150;
+var pipeSpeed = 2.5;
+
+var pipes = [];
+var pipeList = [];
+var maxPipes = 3;
+var spawnTimer = 0;
+var spawnInterval = 120;
+
+var floorY = 550;
+var groundHeight = 50;
+var groundOffset = 0;
+
+var particles = [];
+var trail = [];
+
+var keySpacePressed = false;
+var mouseClicked = false;
+
+var testVar1 = 10;
+var testVar2 = "hello";
+var debugMode = true;
+var tempY = 0;
+
+function resetGame() {
+  birdX = 100;
+  birdY = 200;
+  velocity = 0;
+  velocityY = 0;
+  pipes = [];
+  score = 0;
+  scoreCount = 0;
+  spawnTimer = 0;
+  isDead = false;
+  dead = false;
+  gameState = "PLAYING";
+}
+
+function resetGame2() {
+  birdY = 300;
+  pipes = [];
+}
+
+function applyGravityOld() {
+  birdY += 2;
+}
+
+function applyGravityAttempt1() {
+  velocity += gravity1;
+  birdY += velocity;
+}
+
+function applyGravityAttempt2() {
+  velocityY = velocityY + currentGravity;
+  birdY = birdY + velocityY;
+  if (birdY > 550) {
+    birdY = 550;
+  }
+}
+
+function applyGravityAttempt3() {
+  velocity += gravity3;
+  birdY += velocity;
+  if (velocity > 15) {
+    velocity = 15;
+  }
+}
+
+function flap1() {
+  velocity = -10;
+}
+
+function flap2() {
+  velocityY = flapPower;
+}
+
+function flap3() {
+  birdY -= 30;
+}
+
+function flapBuggy() {
+  velocity += jumpStrength1;
+  birdY += velocity;
+}
+
+function spawnPipeOld() {
+  var topHeight = Math.random() * 200 + 50;
+  pipes.push({
+    x: 400,
+    top: topHeight,
+    bottom: topHeight + pipeGap,
+    passed: false
+  });
+}
+
+function spawnPipeAttempt2() {
+  var minH = 50;
+  var maxH = 300;
+  var h = Math.floor(Math.random() * (maxH - minH + 1)) + minH;
+  pipes.push({
+    x: w,
+    topH: h,
+    bottomY: h + pipeGap,
+    w: pipeWidth,
+    scored: false
+  });
+}
+
+function updatePipes1() {
+  for (var i = 0; i < pipes.length; i++) {
+    pipes[i].x -= pipeSpeed;
+  }
+}
+
+function updatePipes2() {
+  for (var i = pipes.length - 1; i >= 0; i--) {
+    pipes[i].x -= pipeSpeed;
+    if (pipes[i].x + pipeWidth < 0) {
+      pipes.splice(i, 1);
+    }
+  }
+}
+
+function updatePipesWithScore() {
+  for (var i = pipes.length - 1; i >= 0; i--) {
+    var p = pipes[i];
+    p.x -= pipeSpeed;
+
+    if (!p.scored && p.x + pipeWidth < birdX) {
+      p.scored = true;
+      score++;
+      scoreCount += 1;
+      if (score > highScore) {
+        highScore = score;
+      }
+    }
+
+    if (p.x < -pipeWidth) {
+      pipes.splice(i, 1);
+    }
+  }
+}
+
+function checkCollisionSimple() {
+  if (birdY + birdRadius >= floorY) {
+    return true;
+  }
+  if (birdY - birdRadius <= 0) {
+    return true;
+  }
+  return false;
+}
+
+function checkCollisionBuggy(p) {
+  if (birdX > p.x && birdX < p.x + pipeWidth) {
+    if (birdY < p.topH || birdY > p.bottomY) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function checkCollisionRect(bx, by, br, rx, ry, rw, rh) {
+  if (bx + br > rx && bx - br < rx + rw) {
+    if (by + br > ry && by - br < ry + rh) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function checkPipeCollisions() {
+  for (var i = 0; i < pipes.length; i++) {
+    var p = pipes[i];
+
+    var topPipeHit = checkCollisionRect(birdX, birdY, birdRadius, p.x, 0, pipeWidth, p.topH);
+    var botPipeHit = checkCollisionRect(birdX, birdY, birdRadius, p.x, p.bottomY, pipeWidth, h - p.bottomY - groundHeight);
+
+    if (topPipeHit || botPipeHit) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function checkCollisionCircleBoxBad(cx, cy, r, rx, ry, rw, rh) {
+  var testX = cx;
+  var testY = cy;
+
+  if (cx < rx) testX = rx;
+  else if (cx > rx + rw) testX = rx + rw;
+
+  if (cy < ry) testY = ry;
+  else if (cy > ry + rh) testY = ry + rh;
+
+  var distX = cx - testX;
+  var distY = cy - testY;
+  var distance = Math.sqrt((distX * distX) + (distY * distY));
+
+  if (distance <= r) {
+    return true;
+  }
+  return false;
+}
+
+function addParticles(x, y) {
+  for (var i = 0; i < 5; i++) {
+    particles.push({
+      x: x,
+      y: y,
+      vx: (Math.random() - 0.5) * 4,
+      vy: (Math.random() - 0.5) * 4,
+      life: 20
+    });
+  }
+}
+
+function updateParticles() {
+  for (var i = particles.length - 1; i >= 0; i--) {
+    var p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life--;
+    if (p.life <= 0) {
+      particles.splice(i, 1);
+    }
+  }
+}
+
+function drawParticles() {
+  ctx.fillStyle = "orange";
+  for (var i = 0; i < particles.length; i++) {
+    var p = particles[i];
+    ctx.fillRect(p.x, p.y, 3, 3);
+  }
+}
+
+function drawBirdSimple() {
+  ctx.fillStyle = "yellow";
+  ctx.fillRect(birdX - 15, birdY - 15, 30, 30);
+}
+
+function drawBirdCircle() {
+  ctx.fillStyle = "yellow";
+  ctx.beginPath();
+  ctx.arc(birdX, birdY, birdRadius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "black";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.fillStyle = "white";
+  ctx.beginPath();
+  ctx.arc(birdX + 5, birdY - 4, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "black";
+  ctx.beginPath();
+  ctx.arc(birdX + 6, birdY - 4, 2, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "red";
+  ctx.fillRect(birdX + 8, birdY, 10, 6);
+}
+
+function drawBirdRotated() {
+  ctx.save();
+  ctx.translate(birdX, birdY);
+  var angle = velocityY * 0.05;
+  if (angle > 0.5) angle = 0.5;
+  if (angle < -0.5) angle = -0.5;
+  ctx.rotate(angle);
+
+  ctx.fillStyle = "yellow";
+  ctx.beginPath();
+  ctx.arc(0, 0, birdRadius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawPipes1() {
+  ctx.fillStyle = "green";
+  for (var i = 0; i < pipes.length; i++) {
+    var p = pipes[i];
+    ctx.fillRect(p.x, 0, pipeWidth, p.topH);
+    ctx.fillRect(p.x, p.bottomY, pipeWidth, h - p.bottomY);
+  }
+}
+
+function drawPipesOutlined() {
+  for (var i = 0; i < pipes.length; i++) {
+    var p = pipes[i];
+
+    ctx.fillStyle = "#73bf2e";
+    ctx.fillRect(p.x, 0, pipeWidth, p.topH);
+    ctx.fillRect(p.x, p.bottomY, pipeWidth, h - p.bottomY - groundHeight);
+
+    ctx.strokeStyle = "#538123";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(p.x, 0, pipeWidth, p.topH);
+    ctx.strokeRect(p.x, p.bottomY, pipeWidth, h - p.bottomY - groundHeight);
+  }
+}
+
+function drawGround() {
+  ctx.fillStyle = "#ddd896";
+  ctx.fillRect(0, floorY, w, groundHeight);
+
+  ctx.fillStyle = "#73bf2e";
+  ctx.fillRect(0, floorY, w, 10);
+
+  ctx.strokeStyle = "#cbbd6b";
+  ctx.lineWidth = 2;
+  groundOffset = (groundOffset + pipeSpeed) % 20;
+  for (var x = -groundOffset; x < w; x += 20) {
+    ctx.beginPath();
+    ctx.moveTo(x, floorY + 10);
+    ctx.lineTo(x - 10, h);
+    ctx.stroke();
+  }
+}
+
+function drawBackground() {
+  ctx.fillStyle = "#70c5ce";
+  ctx.fillRect(0, 0, w, h);
+}
+
+function drawScore() {
+  ctx.fillStyle = "white";
+  ctx.strokeStyle = "black";
+  ctx.lineWidth = 2;
+  ctx.font = "30px Arial";
+  ctx.textAlign = "center";
+
+  if (gameState === "PLAYING") {
+    ctx.fillText(score, w / 2, 50);
+    ctx.strokeText(score, w / 2, 50);
+  } else if (gameState === "GAMEOVER") {
+    ctx.fillText("GAME OVER", w / 2, 200);
+    ctx.strokeText("GAME OVER", w / 2, 200);
+
+    ctx.font = "20px Arial";
+    ctx.fillText("Score: " + score, w / 2, 250);
+    ctx.fillText("Best: " + highScore, w / 2, 280);
+    ctx.fillText("Click to Restart", w / 2, 340);
+  } else if (gameState === "START") {
+    ctx.fillText("FLAPPY BIRD", w / 2, 200);
+    ctx.font = "20px Arial";
+    ctx.fillText("Click or Press Space", w / 2, 260);
+  }
+}
+
+function mathHelper1(a, b) {
+  return a + b;
+}
+
+function mathHelper2(val, min, max) {
+  if (val < min) return min;
+  if (val > max) return max;
+  return val;
+}
+
+function dummyPhysicsCalculation(y, v, g) {
+  var ny = y + v;
+  var nv = v + g;
+  return [ny, nv];
+}
+
+function brokenCollisionAttempt(bx, by, px, py) {
+  var dx = bx - px;
+  var dy = by - py;
+  if (dx < 20 && dy < 20) {
+    return true;
+  }
+  return false;
+}
+
+function testFunctionA() {
+  var a = 10;
+  var b = 20;
+  return a * b;
+}
+
+function testFunctionB() {
+  console.log("testing");
+}
+
+function calculateDistance(x1, y1, x2, y2) {
+  return Math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+}
+
+function unusedFlapLogic() {
+  velocity = -12;
+  birdY += velocity;
+}
+
+function unusedPipeGenerator() {
+  var p = { x: 500, topH: 100, bottomY: 250 };
+  return p;
+}
+
+function logDebugInfo() {
+  var str = "BirdY: " + birdY + " Vel: " + velocityY + " Pipes: " + pipes.length;
+  return str;
+}
+
+function dummyArrayProcess(arr) {
+  var newArr = [];
+  for (var i = 0; i < arr.length; i++) {
+    newArr.push(arr[i] * 2);
+  }
+  return newArr;
+}
+
+function unusedCollisionCheck2(x1, y1, w1, h1, x2, y2, w2, h2) {
+  return !(x1 > x2 + w2 || x1 + w1 < x2 || y1 > y2 + h2 || y1 + h1 < y2);
+}
+
+function fakeParticleSystem() {
+  this.p = [];
+  this.add = function() {};
+}
+
+function calcRandomGap() {
+  return Math.floor(Math.random() * 50) + 100;
+}
+
+function unusedLoopHelper() {
+  for (var i = 0; i < 100; i++) {
+    var temp = i * 2;
+  }
+}
+
+function checkScreenBounds() {
+  if (birdY < 0) birdY = 0;
+  if (birdY > floorY) birdY = floorY;
+}
+
+function updateGame() {
+  if (gameState !== "PLAYING") return;
+
+  applyGravityAttempt2();
+
+  spawnTimer++;
+  if (spawnTimer >= spawnInterval) {
+    spawnPipeAttempt2();
+    spawnTimer = 0;
+  }
+
+  updatePipesWithScore();
+  updateParticles();
+
+  if (checkCollisionSimple()) {
+    gameState = "GAMEOVER";
+    addParticles(birdX, birdY);
+  }
+
+  if (checkPipeCollisions()) {
+    gameState = "GAMEOVER";
+    addParticles(birdX, birdY);
+  }
+}
+
+function renderGame() {
+  drawBackground();
+  drawPipesOutlined();
+  drawGround();
+  drawParticles();
+  drawBirdCircle();
+  drawScore();
+}
+
+function gameLoop() {
+  updateGame();
+  renderGame();
+  requestAnimationFrame(gameLoop);
+}
+
+function handleInput() {
+  if (gameState === "START") {
+    resetGame();
+  } else if (gameState === "PLAYING") {
+    flap2();
+    addParticles(birdX, birdY);
+  } else if (gameState === "GAMEOVER") {
+    resetGame();
+  }
+}
+
+window.addEventListener("keydown", function(e) {
+  if (e.code === "Space" || e.code === "KeyW" || e.code === "ArrowUp") {
+    handleInput();
+  }
+});
+
+canvas.addEventListener("mousedown", function(e) {
+  handleInput();
+});
+
+canvas.addEventListener("touchstart", function(e) {
+  e.preventDefault();
+  handleInput();
+});
+
+gameLoop();
+</script>
+</body>
+</html>
